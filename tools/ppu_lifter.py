@@ -3887,7 +3887,14 @@ def discover_jump_tables(all_insns, read_u32, toc, text_lo, text_hi, func_starts
                             continue
                         if count is None or _c > count:
                             count = _c
-            if count is None or count < 0 or count > 4096:
+            # No bound check found in the window (it can sit further up than the 30 instructions: Tekken 6's script
+            # interpreter func_001CBE70 checks `cmplwi r27,0x18C` well before its dispatch, the 256 default decoded
+            # 257 of 397 entries and 84 of its 303 case targets were never lifted -- each became a host call into the
+            # middle of the function). Then scan the whole possible table: the per-entry validation and the
+            # "cursor reached the first case" stop below find the real end.
+            if count is None:
+                count = 4095
+            elif count < 0 or count > 4096:
                 count = 256
             # The cmp-derived count is a HINT, never a hard cap. It keeps UNDER-
             # counting: the backward window spans sibling basic blocks, so it can
