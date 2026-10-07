@@ -684,6 +684,9 @@ s32 sys_lwcond_create(sys_lwcond_t_hle* lwcond, sys_lwmutex_t_hle* lwmutex,
 #endif
 
             lwcond->lwcond_queue = slot + 1;
+            /* Like the firmware: the guest pointer to the lwmutex (big-endian) in lwcond+0. Titles check it
+             * (Tekken 6 treats a 0 there as "wait for invalid cond" and never waits). */
+            lwcond->lwmutex_addr = ps3_bswap32((u32)((u8*)lwmutex - vm_base));
             s_lwcond_next = (slot + 1) % MAX_LWCOND;
             slot_unlock();
             return CELL_OK;
