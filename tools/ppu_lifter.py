@@ -259,11 +259,11 @@ static inline uint32_t ppu_vbswap32(uint32_t x) {
 }
 static inline void ppu_vldf4(const void* v, float o[4]) {
     const uint8_t* p = (const uint8_t*)v;
-    for (int i = 0; i < 4; i++) { uint32_t b; memcpy(&b, p + i*4, 4); b = ppu_vbswap32(b); memcpy(&o[i], &b, 4); }
+    for (int i = 0; i < 4; i++) { uint32_t b; memcpy(&b, p + i*4, 4); b = ppu_vbswap32(b); if ((b & 0x7F800000u) == 0) b &= 0x80000000u; memcpy(&o[i], &b, 4); }
 }
 static inline void ppu_vstf4(void* v, const float in[4]) {
     uint8_t* p = (uint8_t*)v;
-    for (int i = 0; i < 4; i++) { uint32_t b; memcpy(&b, &in[i], 4); b = ppu_vbswap32(b); memcpy(p + i*4, &b, 4); }
+    for (int i = 0; i < 4; i++) { uint32_t b; memcpy(&b, &in[i], 4); if ((b & 0x7F800000u) == 0) b &= 0x80000000u; b = ppu_vbswap32(b); memcpy(p + i*4, &b, 4); }
 }
 static inline void ppu_vldu4(const void* v, uint32_t o[4]) {
     const uint8_t* p = (const uint8_t*)v;
@@ -2397,7 +2397,7 @@ class PPULifter:
             vc = int(ops[3][1:])   # ops[3] = vC = multiplicand
             return (f"{{ float a[4],b[4],c[4],d[4]; ppu_vldf4(&ctx->vr[{va}],a); "
                     f"ppu_vldf4(&ctx->vr[{vb}],b); ppu_vldf4(&ctx->vr[{vc}],c); "
-                    f"for(int i=0;i<4;i++) d[i]=a[i]*c[i]+b[i]; ppu_vstf4(&ctx->vr[{vd}],d); }}")
+                    f"for(int i=0;i<4;i++) d[i]=fmaf(a[i],c[i],b[i]); ppu_vstf4(&ctx->vr[{vd}],d); }}")
 
         if mn == "vnmsubfp":
             # vD = -(vA*vC - vB) = vB - vA*vC. Encoding order [vD,vA,vB,vC]:
@@ -2408,7 +2408,7 @@ class PPULifter:
             vc = int(ops[3][1:])   # ops[3] = vC = multiplicand
             return (f"{{ float a[4],b[4],c[4],d[4]; ppu_vldf4(&ctx->vr[{va}],a); "
                     f"ppu_vldf4(&ctx->vr[{vb}],b); ppu_vldf4(&ctx->vr[{vc}],c); "
-                    f"for(int i=0;i<4;i++) d[i]=b[i]-a[i]*c[i]; ppu_vstf4(&ctx->vr[{vd}],d); }}")
+                    f"for(int i=0;i<4;i++) d[i]=-fmaf(a[i],c[i],-b[i]); ppu_vstf4(&ctx->vr[{vd}],d); }}")
 
         if mn == "vaddfp":
             vd, va, vb = int(ops[0][1:]), int(ops[1][1:]), int(ops[2][1:])
